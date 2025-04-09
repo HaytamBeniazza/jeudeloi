@@ -4,7 +4,7 @@ import org.example.model.business.Board;
 import org.example.model.business.Dice;
 import org.example.model.business.Pawn;
 import org.example.model.business.Question;
-import org.example.model.business.Deck;
+import org.example.model.business.QuestionDeck;
 
 import java.util.List;
 
@@ -17,5 +17,5 @@ import java.util.List;
  * @param dice    The dice
  * @param questionDeck The deck of questions cards
  */
-public record GameSession(Long id, List<Pawn> players, Board board, Dice dice, Deck<Question> questionDeck) {
+public record GameSession(Long id, List<Pawn> players, Board board, Dice dice, QuestionDeck questionDeck) {
 }

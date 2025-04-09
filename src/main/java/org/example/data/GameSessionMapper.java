@@ -37,7 +37,7 @@ public class GameSessionMapper {
         entity.setId(record.id());
         entity.setBoard(record.board());
         entity.setPlayers(record.players());
-        entity.setDeck((QuestionDeck) record.questionDeck());
+        entity.setDeck(record.questionDeck());
         entity.setNbFaces(record.dice().getNbFaces());
         return entity;
     }

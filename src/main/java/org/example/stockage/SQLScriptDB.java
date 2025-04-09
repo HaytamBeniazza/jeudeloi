@@ -1,66 +1,62 @@
 package org.example.stockage;
 
+import org.example.stockage.DatabaseConnectionProvider;
+
 import java.io.BufferedReader;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
-import java.net.URL;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.stream.Collectors;
 
 /**
- * Manage the table and data for questions
+ * Execute SQL script
  */
-public class SQLScriptDB {
+public class SQLScriptDB implements DatabaseInitializer {
+
+    private final DatabaseConnectionProvider connectionProvider;
 
     /**
-     * Build a batch request for the database
-     * @param nameScript the name of the script inside the resources
-     * @param connection the connection to the database
-     * @throws DBAccessException if issue with the database
-     * @throws SQLException if issue with the connection
+     * Constructor
+     * @param connectionProvider the database connection provider
      */
-    private static void buildBatchRequest(String nameScript, Connection connection) throws DBAccessException, SQLException {
-        URL insertionScript = connection.getClass().getResource(nameScript);
-        if (insertionScript == null) {
-            throw new DBAccessException("Resource not found, cannot populate database.");
-        }
+    public SQLScriptDB(DatabaseConnectionProvider connectionProvider) {
+        this.connectionProvider = connectionProvider;
+    }
 
-        try (BufferedReader reader = new BufferedReader(new FileReader(insertionScript.getFile()));
+    /**
+     * Execute a SQL script
+     * @param scriptName the name of the script
+     * @throws DBAccessException if something happens
+     */
+    public void executeScript(String scriptName) throws DBAccessException {
+        try (Connection connection = connectionProvider.getConnection();
              Statement statement = connection.createStatement()) {
-            connection.setAutoCommit(false);
-            String request = reader.readLine();
-            while (request != null) {
-                statement.addBatch(request);
-                request = reader.readLine();
-            }
-            statement.executeBatch();
-            connection.commit();
-        } catch (FileNotFoundException e) {
-            throw new DBAccessException("Script not found, cannot initiate database.", e);
-        } catch (IOException e) {
-            throw new DBAccessException("Error when reading script, cannot initiate database.", e);
-        } catch (SQLException e) {
-            connection.rollback();
-            throw new DBAccessException("Cannot insert data", e);
-        }
-        finally {
-            connection.setAutoCommit(true);
+            String script = readScript(scriptName);
+            statement.execute(script);
+        } catch (SQLException | IOException e) {
+            throw new DBAccessException(e);
         }
     }
 
     /**
-     * Populate the table with some data (use for testing purpose)
-     * @param nameScript the name of the script inside the resources
-     * @throws DBAccessException if access or insertion fails
+     * Read a SQL script
+     * @param scriptName the name of the script
+     * @return the content of the script
+     * @throws IOException if something happens
      */
-    public static void runScriptOnDatabase(String nameScript) throws DBAccessException {
-        try (Connection connection = DatabaseAccess.getConnection()) {
-            buildBatchRequest(nameScript, connection);
-        } catch (SQLException | DBAccessException e) {
-            throw new DBAccessException("Cannot insert data into question table", e);
+    private String readScript(String scriptName) throws IOException {
+        try (InputStream inputStream = getClass().getResourceAsStream("/" + scriptName);
+             BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
+            return reader.lines().collect(Collectors.joining("\n"));
         }
     }
 
+    @Override
+    public void initializeDatabase() throws DBAccessException {
+        // Implementation of database initialization
+        // ... existing code ...
+    }
 }

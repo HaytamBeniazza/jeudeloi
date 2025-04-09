@@ -1,17 +1,12 @@
 package org.example.config;
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOError;
-import java.io.IOException;
-import java.net.URL;
 import java.util.Properties;
 
 /**
  * Configuration manager using data from property configuration file
  * Using template from <a href="https://refactoring.guru/fr/design-patterns/singleton/java/example#example-2">guru</a>
  */
-public class ConfigurationManager {
+public class ConfigurationManager implements DatabaseConfig {
 
     /**
      * The instance
@@ -49,36 +44,33 @@ public class ConfigurationManager {
     private boolean populateDatabase;
 
     /**
-     * Constructor
+     * The configuration loader
      */
-    private ConfigurationManager() {
+    private final ConfigurationLoader configurationLoader;
+
+    /**
+     * Constructor
+     * @param configurationLoader the configuration loader to use
+     */
+    private ConfigurationManager(ConfigurationLoader configurationLoader) {
+        this.configurationLoader = configurationLoader;
         readFromConfigurationFile();
     }
 
     /**
      * Read the property file to get the information
      */
-    private void readFromConfigurationFile () {
-        URL linkToFile = ConfigurationManager.class.getResource("/configuration.properties");
-        if (linkToFile == null) {
-            throw new ConfigurationError("configuration.properties not in resource");
-        }
-
-        try (FileInputStream file = new FileInputStream(linkToFile.getPath())) {
-            Properties properties = new Properties();
-            properties.load(file);
+    private void readFromConfigurationFile() {
+        try {
+            Properties properties = configurationLoader.loadProperties();
             this.dbUrl = properties.getProperty("db_url");
             this.dbUsername = properties.getProperty("db_username");
             this.dbPassword = properties.getProperty("db_password");
             this.daoType = properties.getProperty("dao_type");
             this.initDatabase = Boolean.parseBoolean(properties.getProperty("initDatabase"));
             this.populateDatabase = Boolean.parseBoolean(properties.getProperty("populateDatabase"));
-        }
-        catch (FileNotFoundException e) {
+        } catch (ConfigurationError e) {
             this.daoType = "memory";
-        }
-        catch (IOException | IOError e) {
-            throw new ConfigurationError("Impossible to load configuration", e);
         }
     }
 
@@ -87,14 +79,13 @@ public class ConfigurationManager {
      * @return the new instance
      */
     public static ConfigurationManager getInstance() {
-
         ConfigurationManager result = instance;
         if (result != null) {
             return result;
         }
         synchronized(ConfigurationManager.class) {
             if (instance == null) {
-                instance = new ConfigurationManager();
+                instance = new ConfigurationManager(new FileConfigurationLoader());
             }
             return instance;
         }
@@ -104,6 +95,7 @@ public class ConfigurationManager {
      * Get the URL to the database
      * @return the url
      */
+    @Override
     public String getDbUrl() {
         return dbUrl;
     }
@@ -112,6 +104,16 @@ public class ConfigurationManager {
      * Get the username for the database
      * @return the username
      */
+    @Override
+    public String getDatabaseUsername() {
+        return dbUsername;
+    }
+
+    /**
+     * Get the username for the database
+     * @return the username
+     */
+    @Override
     public String getDbUsername() {
         return dbUsername;
     }
@@ -120,7 +122,17 @@ public class ConfigurationManager {
      * Get the password for the database
      * @return the password
      */
+    @Override
     public String getDbPassword() {
+        return dbPassword;
+    }
+
+    /**
+     * Get the database password
+     * @return the database password
+     */
+    @Override
+    public String getDatabasePassword() {
         return dbPassword;
     }
 
@@ -136,6 +148,7 @@ public class ConfigurationManager {
      * Get the trigger value for init the database
      * @return the value of the trigger
      */
+    @Override
     public boolean isInitDatabase() {
         return initDatabase;
     }

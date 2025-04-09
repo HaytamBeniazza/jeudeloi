@@ -7,7 +7,6 @@ import java.util.Optional;
  * Return to the beginning effect
  */
 @Entity
-@Table(name = "return_effect")
 @DiscriminatorValue("RETURN")
 public class ReturnEffect extends CaseEffect {
 

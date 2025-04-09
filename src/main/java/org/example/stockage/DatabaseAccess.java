@@ -1,6 +1,6 @@
 package org.example.stockage;
 
-import org.example.config.ConfigurationManager;
+import org.example.config.DatabaseConfig;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -9,31 +9,27 @@ import java.sql.SQLException;
 /**
  * Access to a given database
  */
-public final class DatabaseAccess {
+public class DatabaseAccess implements DatabaseConnectionProvider {
+
+    private final DatabaseConfig config;
 
     /**
-     * Private constructor
+     * Constructor
+     * @param config the database configuration
      */
-    private DatabaseAccess() {}
-
-    /**
-     * Get a connection to the database
-     * @return the connection with the database
-     */
-    public static Connection getConnection() throws DBAccessException {
-        return getConnection(ConfigurationManager.getInstance().getDbUrl(),
-                ConfigurationManager.getInstance().getDbUsername(),
-                ConfigurationManager.getInstance().getDbPassword());
+    public DatabaseAccess(DatabaseConfig config) {
+        this.config = config;
     }
 
-    /**
-     * Get a connection to the database
-     * @param url the url to the database (with the driver)
-     * @param userName the login name of the user
-     * @param password the password link to the user
-     * @return the connection with the database
-     */
-    public static Connection getConnection(String url, String userName, String password) throws DBAccessException {
+    @Override
+    public Connection getConnection() throws DBAccessException {
+        return getConnection(config.getDbUrl(),
+                config.getDbUsername(),
+                config.getDbPassword());
+    }
+
+    @Override
+    public Connection getConnection(String url, String userName, String password) throws DBAccessException {
         try {
             return DriverManager.getConnection(url, userName, password);
         } catch (SQLException e) {
@@ -41,4 +37,14 @@ public final class DatabaseAccess {
         }
     }
 
+    @Override
+    public void closeConnection(Connection connection) throws DBAccessException {
+        if (connection != null) {
+            try {
+                connection.close();
+            } catch (SQLException e) {
+                throw new DBAccessException("Failed to close database connection", e);
+            }
+        }
+    }
 }

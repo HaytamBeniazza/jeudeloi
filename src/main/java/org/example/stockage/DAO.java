@@ -2,15 +2,14 @@ package org.example.stockage;
 
 import org.example.data.GameSessionPOJO;
 
-import java.util.Optional;
 import java.util.List;
+import java.util.Optional;
 
 /**
- * Data Access Object interface
- * @param <T> the type of data
+ * Unified Data Access Object interface that can work with any persistence mechanism
+ * @param <T> the type of entity
  */
 public interface DAO<T> {
-
     Optional<GameSessionPOJO> get(int id) throws DAOException;
 
     /**
@@ -49,5 +48,4 @@ public interface DAO<T> {
      * @throws DAOException if update fails
      */
     void update(T t) throws DAOException;
-
 }

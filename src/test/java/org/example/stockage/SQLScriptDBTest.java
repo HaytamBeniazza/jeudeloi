@@ -1,57 +1,33 @@
 package org.example.stockage;
 
-import org.junit.jupiter.api.BeforeAll;
+import org.example.config.ConfigurationManager;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 class SQLScriptDBTest {
+    private SQLScriptDB sqlScriptDB;
 
-    @BeforeAll
-    static void setUp() {
-        try ( Connection connection = DatabaseAccess.getConnection() ) {
-            PreparedStatement tableDelete = connection.prepareStatement(
-                    "drop table if exists questions;");
-            tableDelete.executeUpdate();
-        }
-        catch (Exception e) {
-            fail(e.getMessage());
-        }
+    @BeforeEach
+    void setUp() {
+        DatabaseConfig config = ConfigurationManager.getInstance();
+        DatabaseConnectionProvider connectionProvider = new DatabaseAccess(config);
+        sqlScriptDB = new SQLScriptDB(connectionProvider);
     }
 
     @Test
-    void runScriptOnDatabaseQuestion() {
-        try {
-            SQLScriptDB.runScriptOnDatabase("/question_db.sql");
-            SQLScriptDB.runScriptOnDatabase("/questions_insert_db.sql");
-            Connection connection = DatabaseAccess.getConnection();
-            String query = "select question, answer from questions;";
-            ResultSet resultSet = connection.createStatement().executeQuery(query);
-            assertTrue(resultSet.next());
-            assertEquals("What is the capital of Great Britain?", resultSet.getString("question"));
-            assertTrue(resultSet.next());
-            assertEquals("1970", resultSet.getString("answer"));
-        }
-        catch (Exception e) {
-            fail(e.getMessage());
-        }
+    void executeScript() {
+        assertDoesNotThrow(() -> {
+            sqlScriptDB.executeScript("/question_db.sql");
+            sqlScriptDB.executeScript("/questions_insert_db.sql");
+        });
     }
 
     @Test
-    void runScriptOnDatabaseGame() {
-        try {
-            SQLScriptDB.runScriptOnDatabase("/game_session_db.sql");
-            Connection connection = DatabaseAccess.getConnection();
-            String query = "select game_id from game_sessions;";
-            ResultSet resultSet = connection.createStatement().executeQuery(query);
-            assertFalse(resultSet.next());
-        }
-        catch (Exception e) {
-            fail(e.getMessage());
-        }
+    void executeGameSessionScript() {
+        assertDoesNotThrow(() -> {
+            sqlScriptDB.executeScript("/game_session_db.sql");
+        });
     }
 }

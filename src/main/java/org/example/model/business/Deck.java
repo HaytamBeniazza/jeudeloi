@@ -2,153 +2,136 @@ package org.example.model.business;
 
 import jakarta.persistence.*;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
 /**
- * Deck management
- * @param <T> type of card
+ * Deck entity
  */
 @Entity
 @Table(name = "deck")
-public class Deck<T extends Identifiable> implements Identifiable {
+@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+@DiscriminatorColumn(name = "deck_type")
+public abstract class Deck {
 
-    /**
-     * The identifier
-     */
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /**
-     * The list of element (need an ID)
-     */
-    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     @JoinColumn(name = "deck_id")
-    private List<T> cards;
+    private List<Card> cards = new ArrayList<>();
 
-    /**
-     * List of ID of the remaining cards in the deck
-     */
     @ElementCollection
-    @CollectionTable(name = "deck_current_cards", joinColumns = @JoinColumn(name = "deck_id"))
+    @CollectionTable(name = "current_cards", joinColumns = @JoinColumn(name = "deck_id"))
     @Column(name = "card_id")
-    private List<Long> currentCards;
+    private List<Long> currentCards = new ArrayList<>();
 
-    /**
-     * List of ID if the discarded cards
-     */
     @ElementCollection
-    @CollectionTable(name = "deck_discarded_cards", joinColumns = @JoinColumn(name = "deck_id"))
+    @CollectionTable(name = "discarded_cards", joinColumns = @JoinColumn(name = "deck_id"))
     @Column(name = "card_id")
-    private List<Long> discardedCards;
+    private List<Long> discardedCards = new ArrayList<>();
 
     /**
      * Default constructor required by JPA
      */
     public Deck() {
-        this.currentCards = new ArrayList<>();
+        super();
+    }
+
+    /**
+     * Constructor
+     * @param cards the list of cards
+     */
+    public Deck(List<Card> cards) {
+        this.cards = new ArrayList<>(cards);
+        this.currentCards = new ArrayList<>(cards.stream().map(Card::getId).toList());
         this.discardedCards = new ArrayList<>();
+        shuffle();
     }
 
     /**
      * Constructor
-     * @param deck the list of elements
+     * @param id the identifier
+     * @param cards the list of cards
+     * @param currentCards the list of current card IDs
+     * @param discardedCards the list of discarded card IDs
      */
-    public Deck(List<T> deck) {
-        this(null, deck, new ArrayList<>(deck.stream().map(Identifiable::getId).toList()), new ArrayList<>());
-    }
-
-    /**
-     * Constructor
-     * @param deck a list of cards
-     * @param discards a list of discarded cards
-     */
-    public Deck(Long id, List<T> deck, List<Long> cards, List<Long> discards) {
-        this.cards = deck;
-        this.currentCards = cards;
-        this.discardedCards = discards;
+    public Deck(Long id, List<Card> cards, List<Long> currentCards, List<Long> discardedCards) {
         this.id = id;
+        this.cards = new ArrayList<>(cards);
+        this.currentCards = new ArrayList<>(currentCards);
+        this.discardedCards = new ArrayList<>(discardedCards);
     }
 
     /**
-     * Draw a card
-     * @return a card
+     * Draw a card from the deck
+     * @return the drawn card
      */
-    @Transient
-    public T drawCard() {
+    public Card draw() {
         if (currentCards.isEmpty()) {
-            currentCards.addAll(discardedCards);
+            // If no cards left in current deck, recycle discarded cards
+            if (discardedCards.isEmpty()) {
+                throw new IllegalStateException("Cannot draw a card from an empty deck");
+            }
+            currentCards = new ArrayList<>(discardedCards);
             discardedCards.clear();
+            shuffle();
         }
-        if (currentCards.isEmpty()) {
-            throw new IllegalStateException("Cannot draw a card from an empty deck");
-        }
-        Long cardId = this.currentCards.remove(0);
-        this.discardedCards.add(cardId);
-        Optional<T> card = cards.stream().filter(c -> c.getId().equals(cardId)).findFirst();
-        return card.orElse(null);
+        
+        Long cardId = currentCards.remove(0);
+        discardedCards.add(cardId);
+        return cards.stream()
+                .filter(card -> card.getId().equals(cardId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("Card not found in deck"));
     }
 
     /**
-     * Get the list of remaining cards
-     * @return the list
+     * Shuffle the deck
      */
-    public List<Long> getCurrentCards() {
-        return currentCards;
+    public void shuffle() {
+        Collections.shuffle(currentCards);
     }
 
     /**
-     * Set the list of remaining cards
-     * @param currentCards the list
+     * Get the size of the deck
+     * @return the size
      */
-    public void setCurrentCards(List<Long> currentCards) {
-        this.currentCards = currentCards;
+    public int size() {
+        return currentCards.size();
     }
 
-    /**
-     * Get the list of discard cards
-     * @return the list
-     */
-    public List<Long> getDiscardedCards() {
-        return discardedCards;
-    }
-
-    /**
-     * Set the list of discard cards
-     * @param discardedCards the list
-     */
-    public void setDiscardedCards(List<Long> discardedCards) {
-        this.discardedCards = discardedCards;
-    }
-
-    /**
-     * The identifier of the deck
-     * @return the id
-     */
     public Long getId() {
         return id;
     }
 
-    /**
-     * The identifier of the deck
-     * @param id the identifier
-     */
     public void setId(Long id) {
         this.id = id;
     }
 
-    /**
-     * Get the deck
-     */
-    public List<T> getCards() {
+    public List<Card> getCards() {
         return cards;
     }
 
-    /**
-     * Set the deck
-     */
-    public void setCards(List<T> cards) {
+    public void setCards(List<Card> cards) {
         this.cards = cards;
+    }
+
+    public List<Long> getCurrentCards() {
+        return currentCards;
+    }
+
+    public void setCurrentCards(List<Long> currentCards) {
+        this.currentCards = currentCards;
+    }
+
+    public List<Long> getDiscardedCards() {
+        return discardedCards;
+    }
+
+    public void setDiscardedCards(List<Long> discardedCards) {
+        this.discardedCards = discardedCards;
     }
 }

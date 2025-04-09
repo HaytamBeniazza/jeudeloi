@@ -3,29 +3,16 @@ package org.example.model.business;
 import jakarta.persistence.*;
 
 /**
- * Question management
+ * Question class
  */
 @Entity
 @Table(name = "question")
-public class Question implements Identifiable {
+public class Question extends Card {
 
-    /**
-     * The identifier
-     */
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "question_text")
+    private String questionText;
 
-    /**
-     * The question
-     */
-    @Column(nullable = false)
-    private String askedQuestion;
-
-    /**
-     * The answer
-     */
-    @Column(nullable = false)
+    @Column(name = "answer")
     private String answer;
 
     /**
@@ -35,50 +22,39 @@ public class Question implements Identifiable {
     }
 
     /**
-     * Constructor
-     * @param question the question
+     * Constructor with all parameters
+     * @param questionText the question text
      * @param answer the answer
      */
-    public Question(String question, String answer) {
-        this(null, question, answer);
-    }
-
-    /**
-     * Constructor
-     * @param id the identifier
-     * @param question the question
-     * @param answer the answer
-     */
-    public Question(Long id, String question, String answer) {
-        this.askedQuestion = question;
+    public Question(String questionText, String answer) {
+        super(0, "Question: " + questionText);
+        this.questionText = questionText;
         this.answer = answer;
-        this.id = id;
     }
 
     /**
-     * Check a given answer
-     * @param answer a given answer
-     * @return true if correct, false else
+     * Get the question text
+     * @return the question text
      */
-    @Transient
-    public boolean checkAnswer(String answer) {
-        return this.answer.equals(answer);
+    public String getQuestionText() {
+        return questionText;
     }
 
     /**
-     * Get the question
+     * Set the question text
+     * @param questionText the question text
+     */
+    public void setQuestionText(String questionText) {
+        this.questionText = questionText;
+    }
+
+    /**
+     * Get the question (alias for getQuestionText)
      * @return the question
      */
+    @Transient
     public String getAskedQuestion() {
-        return askedQuestion;
-    }
-
-    /**
-     * Set the question
-     * @param askedQuestion the question
-     */
-    public void setAskedQuestion(String askedQuestion) {
-        this.askedQuestion = askedQuestion;
+        return getQuestionText();
     }
 
     /**
@@ -98,18 +74,20 @@ public class Question implements Identifiable {
     }
 
     /**
-     * Get the identifier
-     * @return the identifier
+     * Check if the given answer is correct (case-insensitive)
+     * @param givenAnswer the answer to check
+     * @return true if the answer is correct
      */
-    public Long getId() {
-        return id;
+    @Transient
+    public boolean checkAnswer(String givenAnswer) {
+        return answer.equalsIgnoreCase(givenAnswer);
     }
 
-    /**
-     * Change the identifier
-     * @param id the identifier
-     */
-    public void setId(Long id) {
-        this.id = id;
+    @Override
+    public String toString() {
+        return "Question{" +
+                "questionText='" + questionText + '\'' +
+                ", answer='" + answer + '\'' +
+                '}';
     }
 }

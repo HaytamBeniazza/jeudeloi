@@ -24,10 +24,20 @@ public class GameSessionDAO implements DAO<GameSessionPOJO> {
      */
     private static final String ARRAY_INTEGER_TYPE = "integer";
 
+    private final DatabaseConnectionProvider connectionProvider;
+
+    /**
+     * Constructor
+     * @param connectionProvider the database connection provider
+     */
+    public GameSessionDAO(DatabaseConnectionProvider connectionProvider) {
+        this.connectionProvider = connectionProvider;
+    }
+
     @Override
     public Optional<GameSessionPOJO> get(int id) throws DAOException {
         Optional<GameSessionPOJO> gameSessionPOJO;
-        try (Connection connection = DatabaseAccess.getConnection();
+        try (Connection connection = connectionProvider.getConnection();
              PreparedStatement preparedStatement = connection.prepareStatement(
                      "select nb_faces, size, symbols, current_cards, discarded_cards, board_id, deck_question_id" +
                              " from game_sessions natural inner join boards natural inner join decks_questions" +
@@ -63,7 +73,7 @@ public class GameSessionDAO implements DAO<GameSessionPOJO> {
     @Override
     public List<GameSessionPOJO> getAll() throws DAOException {
         List<GameSessionPOJO> listPojo = new ArrayList<>();
-        try (Connection connection = DatabaseAccess.getConnection();
+        try (Connection connection = connectionProvider.getConnection();
              PreparedStatement preparedStatement = connection.prepareStatement(
                      "select game_id, nb_faces, size, symbols, current_cards, discarded_cards, board_id, deck_question_id" +
                              " from game_sessions natural inner join boards natural inner join decks_questions");)
@@ -96,7 +106,7 @@ public class GameSessionDAO implements DAO<GameSessionPOJO> {
 
     @Override
     public void delete(GameSessionPOJO gameSessionPOJO) throws DAOException {
-        try (Connection connection = DatabaseAccess.getConnection();
+        try (Connection connection = connectionProvider.getConnection();
              PreparedStatement gameStatement = connection.prepareStatement("delete from game_sessions where game_id=?");
              PreparedStatement playerStatement = connection.prepareStatement("delete from game_players where game_id=?")
         ) {
@@ -161,28 +171,28 @@ public class GameSessionDAO implements DAO<GameSessionPOJO> {
      */
     private List<InfoPlayerPOJO> getPlayersFromGame(Connection connection, int game_id) throws DAOException {
         List<InfoPlayerPOJO> players = new ArrayList<>();
-        try (PreparedStatement playerStatement = connection.prepareStatement(
-                "select player_id, name, score, color, position, game_id from info_players, game_sessions" +
-                        " inner join game_players on info_players.player_id=game_players.player_id" +
-                        " and game_sessions.game_id=game_players.game_id" +
-                        " where game_sessions.game_id=?")) {
-
-            playerStatement.setInt(1, game_id);
-            ResultSet playerResultSet = playerStatement.executeQuery();
-
-            while (playerResultSet.next()) {
-                InfoPlayerPOJO infoPlayer = new InfoPlayerPOJO();
-                infoPlayer.setId(playerResultSet.getInt("player_id"));
-                infoPlayer.setName(playerResultSet.getString("name"));
-                infoPlayer.setScore(playerResultSet.getInt("score"));
-                infoPlayer.setPosition(playerResultSet.getInt("position"));
-                infoPlayer.setColor(playerResultSet.getInt("color"));
-                players.add(infoPlayer);
+        try (PreparedStatement preparedStatement = connection.prepareStatement(
+                "select player_name, color from game_players where game_id=?")) {
+            preparedStatement.setInt(1, game_id);
+            ResultSet resultSet = preparedStatement.executeQuery();
+            while (resultSet.next()) {
+                InfoPlayerPOJO player = new InfoPlayerPOJO();
+                player.setName(resultSet.getString("player_name"));
+                // Convert color string to integer
+                String colorStr = resultSet.getString("color");
+                int color = switch (colorStr.toLowerCase()) {
+                    case "red" -> 0;
+                    case "blue" -> 1;
+                    case "green" -> 2;
+                    case "yellow" -> 3;
+                    default -> throw new DAOException("Invalid color: " + colorStr, new IllegalArgumentException("Invalid color value: " + colorStr));
+                };
+                player.setColor(color);
+                players.add(player);
             }
+            return players;
+        } catch (SQLException e) {
+            throw new DAOException("SELECT error -- players", e);
         }
-        catch (SQLException e) {
-            throw new DAOException("SELECT error -- no players", e);
-        }
-        return players;
     }
 }
