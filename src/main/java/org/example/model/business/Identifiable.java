@@ -9,6 +9,7 @@ public interface Identifiable {
      * Get the unique identifier of the object
      * @return the ID
      */
-    int getId();
+    Long getId();
 
+    void setId(Long id);
 }

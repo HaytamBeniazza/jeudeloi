@@ -1,34 +1,51 @@
 package org.example.model.business;
 
+import jakarta.persistence.*;
+
 /**
  * A pawn representing a player
  */
+@Entity
+@Table(name = "pawn")
 public class Pawn {
 
     /**
      * The id of the player
      */
-    private int id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     /**
      * Name of the player
      */
-    private final String name;
+    @Column(name = "name", nullable = false)
+    private String name;
 
     /**
      * Score of the player
      */
+    @Column(nullable = false)
     private int score;
 
     /**
      * The position of the pawn
      */
+    @Column(name = "position")
     private int position;
 
     /**
      * The color of the pawn
      */
-    private final Color color;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Color color;
+
+    /**
+     * Default constructor required by JPA
+     */
+    public Pawn() {
+    }
 
     /**
      * Constructor
@@ -38,7 +55,7 @@ public class Pawn {
      * @param color the color of the pawn
      * @param position the initial position of the pawn
      */
-    public Pawn(String name, int score, int id, Color color, int position) {
+    public Pawn(String name, int score, Long id, Color color, int position) {
         this.name = name;
         this.score = score;
         this.id = id;
@@ -52,7 +69,7 @@ public class Pawn {
      * @param color the color of the pawn
      */
     public Pawn(String name, Color color) {
-        this(name, 0, -1, color, 0);
+        this(name, 0, null, color, 0);
     }
 
     /**
@@ -62,7 +79,7 @@ public class Pawn {
      * @param position the initial position of the pawn
      */
     public Pawn(String name, Color color, int position) {
-        this(name, 0, -1, color, position);
+        this(name, 0, null, color, position);
     }
 
     /**
@@ -71,10 +88,10 @@ public class Pawn {
      * @param dice the dice
      * @return the value of the dice
      */
+    @Transient
     public int rollDice(Dice dice) {
         return dice.roll();
     }
-
 
     /**
      * Get the name of the player
@@ -83,6 +100,15 @@ public class Pawn {
      */
     public String getName() {
         return this.name;
+    }
+
+    /**
+     * Set the name of the player
+     *
+     * @param name the name
+     */
+    public void setName(String name) {
+        this.name = name;
     }
 
     /**
@@ -108,8 +134,17 @@ public class Pawn {
      *
      * @return the id
      */
-    public int getId() {
+    public Long getId() {
         return id;
+    }
+
+    /**
+     * Set the identifier of the player
+     *
+     * @param id the id
+     */
+    public void setId(Long id) {
+        this.id = id;
     }
 
     /**
@@ -134,5 +169,13 @@ public class Pawn {
      */
     public Color getColor() {
         return this.color;
+    }
+
+    /**
+     * Set the color of the pawn
+     * @param color the color
+     */
+    public void setColor(Color color) {
+        this.color = color;
     }
 }

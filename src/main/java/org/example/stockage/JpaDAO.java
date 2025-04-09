@@ -1,18 +1,14 @@
 package org.example.stockage;
 
-import org.example.data.GameSessionPOJO;
-
+import jakarta.persistence.EntityManager;
 import java.util.Optional;
 import java.util.List;
 
 /**
- * Data Access Object interface
- * @param <T> the type of data
+ * JPA Data Access Object interface
+ * @param <T> the type of entity
  */
-public interface DAO<T> {
-
-    Optional<GameSessionPOJO> get(int id) throws DAOException;
-
+public interface JpaDAO<T> {
     /**
      * Get a given element
      * @param id the identifier of the element
@@ -49,5 +45,4 @@ public interface DAO<T> {
      * @throws DAOException if update fails
      */
     void update(T t) throws DAOException;
-
-}
+} 

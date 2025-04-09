@@ -17,5 +17,5 @@ import java.util.List;
  * @param dice    The dice
  * @param questionDeck The deck of questions cards
  */
-public record GameSession(int id, List<Pawn> players, Board board, Dice dice, Deck<Question> questionDeck) {
+public record GameSession(Long id, List<Pawn> players, Board board, Dice dice, Deck<Question> questionDeck) {
 }

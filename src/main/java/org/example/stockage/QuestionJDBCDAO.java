@@ -1,6 +1,6 @@
 package org.example.stockage;
 
-import org.example.data.QuestionDTO;
+import org.example.model.business.Question;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -11,93 +11,107 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * JDBC DAO for QuestionDTO
+ * JDBC DAO for Question
  */
-public class QuestionJDBCDAO implements DAO<QuestionDTO> {
+public class QuestionJDBCDAO implements JpaDAO<Question> {
+
+    private Connection connection;
+
+    public QuestionJDBCDAO() throws DBAccessException {
+        this.connection = DatabaseAccess.getConnection();
+    }
 
     @Override
-    public Optional<QuestionDTO> get(int id) throws DAOException {
-        Optional<QuestionDTO> questionDTO = Optional.empty();
-        try( Connection connection = DatabaseAccess.getConnection();
-             PreparedStatement preparedStatement = connection.prepareStatement("select question, answer from questions where id=?")) {
-            preparedStatement.setInt(1, id);
+    public Optional<Question> get(Long id) throws DAOException {
+        try (PreparedStatement preparedStatement = connection.prepareStatement(
+                "SELECT id, question, answer FROM questions WHERE id = ?")) {
+            preparedStatement.setLong(1, id);
             ResultSet resultSet = preparedStatement.executeQuery();
             if (resultSet.next()) {
-                QuestionDTO dto = new QuestionDTO(id, resultSet.getString("question"), resultSet.getString("answer"));
-                questionDTO = Optional.of(dto);
+                Question question = new Question(
+                    resultSet.getString("question"),
+                    resultSet.getString("answer")
+                );
+                question.setId(resultSet.getLong("id"));
+                return Optional.of(question);
             }
-            resultSet.close();
+            return Optional.empty();
+        } catch (SQLException e) {
+            throw new DAOException("Error getting question", e);
         }
-        catch (SQLException | DBAccessException e) {
-            throw new DAOException("SELECT error", e);
-        }
-        return questionDTO;
     }
 
     @Override
-    public List<QuestionDTO> getAll() throws DAOException {
-        List<QuestionDTO> questions = new ArrayList<>();
-        try( Connection connection = DatabaseAccess.getConnection();
-             PreparedStatement preparedStatement = connection.prepareStatement("select id, question, answer from questions")) {
+    public List<Question> getAll() throws DAOException {
+        List<Question> questions = new ArrayList<>();
+        try (PreparedStatement preparedStatement = connection.prepareStatement(
+                "SELECT id, question, answer FROM questions")) {
             ResultSet resultSet = preparedStatement.executeQuery();
             while (resultSet.next()) {
-                QuestionDTO dto = new QuestionDTO(resultSet.getInt("id"),
-                        resultSet.getString("question"),
-                        resultSet.getString("answer"));
-                questions.add(dto);
+                Question question = new Question(
+                    resultSet.getString("question"),
+                    resultSet.getString("answer")
+                );
+                question.setId(resultSet.getLong("id"));
+                questions.add(question);
             }
-            resultSet.close();
-        }
-        catch (SQLException | DBAccessException e) {
-            throw new DAOException("SELECT error", e);
-        }
-        return questions;
-    }
-
-    @Override
-    public int create(QuestionDTO questionDTO) throws DAOException {
-        try( Connection connection = DatabaseAccess.getConnection();
-             PreparedStatement preparedStatement = connection.prepareStatement("insert into questions (question, answer) values(?,?)");
-             PreparedStatement idRequest = connection.prepareStatement("call identity()")
-             ) {
-            preparedStatement.setString(1, questionDTO.question());
-            preparedStatement.setString(2, questionDTO.answer());
-            preparedStatement.executeUpdate();
-
-            ResultSet result = idRequest.executeQuery();
-            result.next();
-            return result.getInt(1);
-        }
-        catch (SQLException | DBAccessException e) {
-            throw new DAOException("INSERT error", e);
+            return questions;
+        } catch (SQLException e) {
+            throw new DAOException("Error getting all questions", e);
         }
     }
 
     @Override
-    public void delete(QuestionDTO questionDTO) throws DAOException {
-        try( Connection connection = DatabaseAccess.getConnection();
-             PreparedStatement preparedStatement = connection.prepareStatement("delete from questions where id=?")
-        ) {
-            preparedStatement.setLong(1, questionDTO.id());
+    public Long create(Question question) throws DAOException {
+        try (PreparedStatement preparedStatement = connection.prepareStatement(
+                "INSERT INTO questions (question, answer) VALUES (?, ?)",
+                PreparedStatement.RETURN_GENERATED_KEYS)) {
+            preparedStatement.setString(1, question.getAskedQuestion());
+            preparedStatement.setString(2, question.getAnswer());
             preparedStatement.executeUpdate();
-        }
-        catch (SQLException | DBAccessException e) {
-            throw new DAOException("DELETE error", e);
+            
+            ResultSet generatedKeys = preparedStatement.getGeneratedKeys();
+            if (generatedKeys.next()) {
+                return generatedKeys.getLong(1);
+            } else {
+                throw new DAOException("Creating question failed, no ID obtained", new SQLException("No generated keys returned"));
+            }
+        } catch (SQLException e) {
+            throw new DAOException("Error creating question: " + question.getAskedQuestion(), e);
         }
     }
 
     @Override
-    public void update(QuestionDTO questionDTO) throws DAOException {
-        try( Connection connection = DatabaseAccess.getConnection();
-             PreparedStatement preparedStatement = connection.prepareStatement("update questions set question=?, answer=? where id=?")
-        ) {
-            preparedStatement.setString(1, questionDTO.question());
-            preparedStatement.setString(2, questionDTO.answer());
-            preparedStatement.setLong(3, questionDTO.id());
+    public void delete(Question question) throws DAOException {
+        try (PreparedStatement preparedStatement = connection.prepareStatement(
+                "DELETE FROM questions WHERE id = ?")) {
+            preparedStatement.setLong(1, question.getId());
             preparedStatement.executeUpdate();
+        } catch (SQLException e) {
+            throw new DAOException("Error deleting question", e);
         }
-        catch (SQLException | DBAccessException e) {
-            throw new DAOException("UPDATE error", e);
+    }
+
+    @Override
+    public void update(Question question) throws DAOException {
+        try (PreparedStatement preparedStatement = connection.prepareStatement(
+                "UPDATE questions SET question = ?, answer = ? WHERE id = ?")) {
+            preparedStatement.setString(1, question.getAskedQuestion());
+            preparedStatement.setString(2, question.getAnswer());
+            preparedStatement.setLong(3, question.getId());
+            preparedStatement.executeUpdate();
+        } catch (SQLException e) {
+            throw new DAOException("Error updating question", e);
+        }
+    }
+
+    public void close() {
+        if (connection != null) {
+            try {
+                connection.close();
+            } catch (SQLException e) {
+                // Log error or handle it appropriately
+            }
         }
     }
 }

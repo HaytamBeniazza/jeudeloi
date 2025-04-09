@@ -1,87 +1,53 @@
 package org.example.stockage;
 
-import org.example.data.QuestionDTO;
+import org.example.model.business.Question;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 /**
- * In memory DAO for question
+ * In-memory DAO for Question
  */
-public class QuestionIMDAO implements DAO<QuestionDTO> {
+public class QuestionIMDAO implements JpaDAO<Question> {
+
+    private final List<Question> questions;
 
     /**
-     * Counter for identifier
+     * Constructor
      */
-    private static int counter = 0;
-
-    /**
-     * The array of questions
-     */
-    private static final List<QuestionDTO> questions = new ArrayList<>();
-
-    /**
-     * Mutex for protection
-     */
-    private static final Object mutex = new Object();
-
-    /**
-     * Populate with some questions
-     */
-    public static void clearAndPopulate() {
-        synchronized (mutex) {
-            questions.clear();
-        }
-        QuestionIMDAO questionIMDAO = new QuestionIMDAO();
-        questionIMDAO.create(new QuestionDTO(-1, "What is the capital of Great Britain?", "London"));
-        questionIMDAO.create(new QuestionDTO(-1, "When is year 0 for Unix time?", "1970"));
-        questionIMDAO.create(new QuestionDTO(-1, "Who is the first president of the fifth French republic?", "De Gaulle"));
-    }
-
-    /**
-     * Clear the database
-     */
-    public static void clear () {
-        synchronized (mutex) {
-            questions.clear();
-        }
+    public QuestionIMDAO() {
+        this.questions = new ArrayList<>();
     }
 
     @Override
-    public int create(QuestionDTO question) {
-        QuestionDTO newQuestion;
-        synchronized (mutex) {
-            newQuestion = new QuestionDTO(counter, question.question(), question.answer());
-            questions.add(newQuestion);
-            counter++;
-        }
-        return newQuestion.id();
+    public Optional<Question> get(Long id) throws DAOException {
+        return questions.stream()
+                .filter(q -> q.getId().equals(id))
+                .findFirst();
     }
 
     @Override
-    public void delete(QuestionDTO question) {
+    public List<Question> getAll() throws DAOException {
+        return new ArrayList<>(questions);
+    }
+
+    @Override
+    public Long create(Question question) throws DAOException {
+        questions.add(question);
+        return question.getId();
+    }
+
+    @Override
+    public void delete(Question question) throws DAOException {
         questions.remove(question);
     }
 
     @Override
-    public void update(QuestionDTO question) {
-        Optional<QuestionDTO> oldQuestion = questions.stream().filter(q -> q.id() == question.id()).findAny();
-        if (oldQuestion.isPresent()) {
-            synchronized (mutex) {
-                questions.remove(oldQuestion.get());
-                questions.add(question);
-            }
+    public void update(Question question) throws DAOException {
+        int index = questions.indexOf(question);
+        if (index != -1) {
+            questions.set(index, question);
         }
-    }
-
-    @Override
-    public Optional<QuestionDTO> get(int id) {
-        return questions.stream().filter(q -> q.id() == id).findAny();
-    }
-
-    @Override
-    public List<QuestionDTO> getAll() {
-        return questions.stream().toList();
     }
 }

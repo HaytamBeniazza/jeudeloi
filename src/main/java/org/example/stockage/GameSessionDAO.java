@@ -56,6 +56,11 @@ public class GameSessionDAO implements DAO<GameSessionPOJO> {
     }
 
     @Override
+    public Optional<GameSessionPOJO> get(Long id) throws DAOException {
+        return Optional.empty();
+    }
+
+    @Override
     public List<GameSessionPOJO> getAll() throws DAOException {
         List<GameSessionPOJO> listPojo = new ArrayList<>();
         try (Connection connection = DatabaseAccess.getConnection();
@@ -84,9 +89,9 @@ public class GameSessionDAO implements DAO<GameSessionPOJO> {
     }
 
     @Override
-    public int create(GameSessionPOJO gameSessionPOJO) throws DAOException {
+    public Long create(GameSessionPOJO gameSessionPOJO) throws DAOException {
         // TODO
-        return 0;
+        return 0L;
     }
 
     @Override

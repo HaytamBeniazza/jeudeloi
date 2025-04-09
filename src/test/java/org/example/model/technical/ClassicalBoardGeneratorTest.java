@@ -12,7 +12,7 @@ class ClassicalBoardGeneratorTest {
     void generateBoard() {
         ClassicalBoardGenerator classicalBoardGenerator = new ClassicalBoardGenerator();
         Board board = classicalBoardGenerator.generateBoard();
-        assertEquals(15, board.getSize());
+        assertEquals(63, board.getSize());
         assertInstanceOf(Case.class, board.getCase(0));
     }
 }

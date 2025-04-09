@@ -1,12 +1,19 @@
 package org.example.controler;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
+import jakarta.persistence.Persistence;
 import org.example.config.ConfigurationManager;
-import org.example.data.Convertor;
-import org.example.data.QuestionConvertor;
-import org.example.data.QuestionDTO;
+import org.example.data.GameSessionMapper;
 import org.example.model.business.*;
 import org.example.model.technical.ClassicalBoardGenerator;
-import org.example.stockage.*;
+import org.example.repository.GameSessionRepository;
+import org.example.repository.QuestionRepository;
+import org.example.repository.jpa.JpaGameSessionRepository;
+import org.example.repository.jpa.JpaQuestionRepository;
+import org.example.stockage.DAOException;
+import org.example.stockage.DBAccessException;
+import org.example.stockage.SQLScriptDB;
 import org.example.view.View;
 
 import java.util.List;
@@ -29,6 +36,21 @@ public class GameController {
     private final GameSession session;
 
     /**
+     * Entity Manager Factory
+     */
+    private final EntityManagerFactory emf;
+
+    /**
+     * Game Session Repository
+     */
+    private final GameSessionRepository gameSessionRepository;
+
+    /**
+     * Question Repository
+     */
+    private final QuestionRepository questionRepository;
+
+    /**
      * The constructor
      * @param playerNames the name of the players
      */
@@ -43,16 +65,51 @@ public class GameController {
      */
     public GameController(View view, List<String> playerNames, Dice dice) {
         try {
+            this.emf = Persistence.createEntityManagerFactory("game-persistence-unit");
+            this.gameSessionRepository = new JpaGameSessionRepository(emf);
+            this.questionRepository = new JpaQuestionRepository(emf);
+            
             initDatabase();
-            List<Question> questions = loadQuestionList();
+            List<Question> questions = questionRepository.findAll();
             ClassicalBoardGenerator boardGenerator = new ClassicalBoardGenerator();
-            this.session = new GameSession(-1,
-                    createPlayers(playerNames),
-                    boardGenerator.generateBoard(),
-                    dice,
-                    new Deck<>(questions));
+            
+            // Create and persist the game session in a single transaction
+            EntityManager em = emf.createEntityManager();
+            em.getTransaction().begin();
+            
+            // Create and persist the board and its cases first
+            Board board = boardGenerator.generateBoard();
+            for (Case c : board.getCases()) {
+                em.persist(c.getEffect()); // Persist the effect first
+                em.persist(c); // Then persist the case
+            }
+            em.persist(board); // Finally persist the board
+            
+            // Create and persist the deck
+            QuestionDeck deck = new QuestionDeck(questions);
+            em.persist(deck);
+            
+            // Create and persist the players
+            List<Pawn> players = createPlayers(playerNames);
+            for (Pawn player : players) {
+                em.persist(player);
+            }
+            
+            // Create and persist the game session
+            org.example.model.business.GameSession gameSession = new org.example.model.business.GameSession(
+                dice.getNbFaces(),
+                board,
+                deck,
+                players
+            );
+            em.persist(gameSession);
+            
+            em.getTransaction().commit();
+            em.close();
+            
+            this.session = GameSessionMapper.toRecord(gameSession, dice);
             this.view = view;
-        } catch (DAOException | DBAccessException | UnknownDAOException e) {
+        } catch (DBAccessException | DAOException e) {
             throw new GameError(e);
         }
     }
@@ -83,6 +140,14 @@ public class GameController {
                 applyQuestionEffect(p);
             }
         }
+        
+        // Update the game session in the database
+        try {
+            org.example.model.business.GameSession gameSession = GameSessionMapper.toEntity(this.session);
+            gameSessionRepository.update(gameSession);
+        } catch (DAOException e) {
+            throw new GameError(e);
+        }
     }
 
     /**
@@ -100,6 +165,14 @@ public class GameController {
         }
         else
             sendMessage(p.getName()+" give a valid answer.");
+            
+        // Update the game session in the database
+        try {
+            org.example.model.business.GameSession gameSession = GameSessionMapper.toEntity(this.session);
+            gameSessionRepository.update(gameSession);
+        } catch (DAOException e) {
+            throw new GameError(e);
+        }
     }
 
     /**
@@ -129,15 +202,14 @@ public class GameController {
 
     /**
      * Get the list of questions
-     * @return the deck
-     * @throws DAOException if issues with DAO
-     * @throws UnknownDAOException if DAO is unknown
+     * @return the list of questions
      */
-    public List<Question> loadQuestionList() throws DAOException, UnknownDAOException {
-        DAO<QuestionDTO> dao = DAOFactory.getQuestionDAO();
-        List<QuestionDTO> questionsDto = dao.getAll();
-        Convertor<Question, QuestionDTO> convert = new QuestionConvertor();
-        return questionsDto.stream().map(convert::fromDTO).toList();
+    public List<Question> loadQuestionList() {
+        try {
+            return questionRepository.findAll();
+        } catch (DAOException e) {
+            throw new GameError(e);
+        }
     }
 
     /**
@@ -166,10 +238,15 @@ public class GameController {
     public void initDatabase() throws DBAccessException {
         if (ConfigurationManager.getInstance().isInitDatabase()) {
             SQLScriptDB.runScriptOnDatabase("/question_db.sql");
-            SQLScriptDB.runScriptOnDatabase("/game_session_db.sql");
         }
-        if (ConfigurationManager.getInstance().isPopulateDatabase()) {
-            SQLScriptDB.runScriptOnDatabase("/questions_insert_db.sql");
+    }
+
+    /**
+     * Close the entity manager factory
+     */
+    public void close() {
+        if (emf != null && emf.isOpen()) {
+            emf.close();
         }
     }
 }

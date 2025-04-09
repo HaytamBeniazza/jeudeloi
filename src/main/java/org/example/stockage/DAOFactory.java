@@ -1,39 +1,40 @@
 package org.example.stockage;
 
-import org.example.data.QuestionDTO;
-import org.example.config.ConfigurationManager;
+import jakarta.persistence.EntityManagerFactory;
+import jakarta.persistence.Persistence;
+import org.example.model.business.Question;
 
 /**
- * Factory building the DAO using information from configuration file
+ * Factory for DAO
  */
 public class DAOFactory {
 
+    private static final EntityManagerFactory emf = Persistence.createEntityManagerFactory("game-persistence-unit");
+
     /**
-     * Private constructor
+     * Get the question DAO
+     * @return the DAO
+     * @throws UnknownDAOException if DAO is unknown
      */
-    private DAOFactory() {
+    public static JpaDAO<Question> getQuestionDAO() throws UnknownDAOException {
+        return new QuestionJPADAO(emf);
     }
 
     /**
-     * Build DAO for calendar slot DTO (from configuration file)
-     * @return the dao
+     * Get the game session DAO
+     * @return the DAO
+     * @throws UnknownDAOException if DAO is unknown
      */
-    public static DAO<QuestionDTO> getQuestionDAO() throws UnknownDAOException {
-        return getQuestionDAO(ConfigurationManager.getInstance().getDaoType());
+    public static GameSessionJPADAO getGameSessionDAO() throws UnknownDAOException {
+        return new GameSessionJPADAO(emf);
     }
 
     /**
-     * Build DAO for calendar slot DTO
-     * @param daoType the type of dao (memory, memoryWithInit, jdbc)
-     * @return the dao
+     * Close the EntityManagerFactory
      */
-    public static DAO<QuestionDTO> getQuestionDAO(String daoType) throws UnknownDAOException {
-        switch (daoType) {
-            case "memory" -> {return new QuestionIMDAO();}
-            case "memoryWithInit" -> {QuestionIMDAO.clearAndPopulate(); return new QuestionIMDAO();}
-            case "jdbc" -> {return new QuestionJDBCDAO();}
-            default -> throw new UnknownDAOException(daoType + " not found.");
+    public static void close() {
+        if (emf != null && emf.isOpen()) {
+            emf.close();
         }
     }
-
 }
